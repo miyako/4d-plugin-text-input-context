@@ -1,0 +1,32 @@
+﻿{
+	"Sources/Methods/Method1.4dm": {
+		"left": 550,
+		"top": 103,
+		"width": 1138,
+		"height": 642
+	},
+	"Sources/Methods/Method3.4dm": {
+		"left": 501,
+		"top": 313,
+		"width": 1138,
+		"height": 642
+	},
+	"Sources/Methods/Method4.4dm": {
+		"left": 176,
+		"top": 300,
+		"width": 1138,
+		"height": 642
+	},
+	"Sources/Methods/test.4dm": {
+		"left": 253,
+		"top": 395,
+		"width": 1138,
+		"height": 642
+	},
+	"Trash/Methods/(Method2).4dm": {
+		"left": 92,
+		"top": 211,
+		"width": 1138,
+		"height": 642
+	}
+}
