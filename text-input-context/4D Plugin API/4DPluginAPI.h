@@ -20,68 +20,9 @@
 
 #include "Flags.h"
 #include "PublicTypes.h"
-
-#include <string>
-#include <vector>
-#include <map>
-
-#include "C_INTEGER.h"
-#include "C_LONGINT.h"
-#include "C_TIME.h"
-#include "C_DATE.h"
-#include "C_REAL.h"
-#include "C_TEXT.h"
-#include "C_BLOB.h"
-#include "C_POINTER.h"
-#include "C_PICTURE.h"
-
-#include "ARRAY_TEXT.h"
-#include "ARRAY_BOOLEAN.h"
-#include "ARRAY_INTEGER.h"
-#include "ARRAY_REAL.h"
-#include "ARRAY_LONGINT.h"
-#include "ARRAY_TIME.h"
-#include "ARRAY_DATE.h"
-
-//some external libraries assume first load; include this file after them
-#if VERSIONWIN
-#ifndef _WINDOWS_
-//need to load winsock2 before windows
-//BSD wrappers
-#define close closesocket
-#define TickCount GetTickCount
-#define getpid GetCurrentProcessId
-#include <winsock2.h>
-
-#include <ws2tcpip.h>
-#pragma comment(lib, "ws2_32.lib")
-
-#include <windows.h>
-#include <iphlpapi.h>
-#include <icmpapi.h>
-
-#pragma comment(lib, "iphlpapi.lib")
-#include <time.h>
-#include <mmsystem.h>
-#pragma comment(lib, "winmm.lib")
-#endif
-#else
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#define SOCKET int
-#define SOCKET_ERROR (-1)
-#define INVALID_SOCKET (SOCKET)(~0)
-#endif
-
 #ifndef NULL
 #define NULL 0
 #endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -92,7 +33,7 @@ extern "C" {
 // interface that must be provided by user
 // ---------------------------------------------------------------
 void PluginMain( PA_long32 selector, PA_PluginParameters params );
-void CommandDispatcher (PA_long32 pProcNum, sLONG_PTR *pResult, PackagePtr pParams);
+
 
 // ---------------------------------------------------------------
 // Returns the last error returned by any call to the API

@@ -4,12 +4,12 @@
     "commands": [
                  {
                  "theme": "Text Input Context",
-                 "syntax": "INPUT SOURCES LIST(&Y)",
+                 "syntax": "_o_INPUT SOURCES LIST(&Y)",
                  "threadSafe": false
                  },
                  {
                  "theme": "Text Input Context",
-                 "syntax": "Get input source:T",
+                 "syntax": "_o_Get input source:T",
                  "threadSafe": false
                  },
                  {
@@ -26,6 +26,16 @@
                  "theme": "Text Input Context",
                  "syntax": "SET INPUT SOURCE LOCALES(&Y)",
                  "threadSafe": false
+                 },
+                 {
+                     "theme": "Text Input Context",
+                     "syntax": "INPUT SOURCES LIST(&J)",
+                     "threadSafe": false
+                 },
+                 {
+                     "theme": "Text Input Context",
+                     "syntax": "Get input source:J",
+                     "threadSafe": false
                  }
                  ]
 }

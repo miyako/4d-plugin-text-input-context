@@ -22,6 +22,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if __APPLE__
+#include <CoreGraphics/CoreGraphics.h>
+#endif
+
 // gCall4D stores the address of a callback routine in 4D.
 // this address is given by 4D when it calls the plugin for the first time.
 Call4DProcPtr gCall4D = 0;
@@ -2343,7 +2347,7 @@ PA_Pointer PA_GetPointerParameter( PA_PluginParameters params, short index )
 
 		if ( ptvar->fType == eVK_Pointer )
 		{
-			if (( ptvar->uValue.fPointer == 0 ))	// m.c
+            if ( ptvar->uValue.fPointer == 0 )	// m.c
 				return 0;
 			
 			return *ptvar->uValue.fPointer;
@@ -2882,7 +2886,7 @@ void PA_AcceptDeselect( PA_PluginParameters params, char accept )
 PA_DragAndDropInfo PA_GetDragAndDropInfo( PA_PluginParameters params )
 {
 	PA_Event			*ev;
-	PA_DragAndDropInfo	dropinfo = {0};
+    PA_DragAndDropInfo	dropinfo = {{0}};
 
 	ev = ( (PA_Event**) params->fParameters )[ 0 ];
 	if ( ev->fWhat == eAE_Drop || ev->fWhat == eAE_AllowDrop )
@@ -4056,6 +4060,7 @@ PA_Variable PA_CreateVariable( PA_VariableKind kind )
 		case eVK_ArrayPointer:
 		case eVK_Integer :
 			// not supported
+        default:
 			break;
 	}
 	return variable;
@@ -5893,7 +5898,7 @@ void PA_UnlockDatabase()
 // it will return 0.
 char PA_TryToOpenPrinterSession()
 {
-	EngineBlock eb={0};
+    EngineBlock eb={{0}};
 	eb.fError = eER_NoErr;
 	Call4D( EX_TRY_TO_OPEN_PRINTER_SESSION, &eb );
 	sErrorCode = (PA_ErrorCode)eb.fError;
@@ -5917,7 +5922,7 @@ char PA_TryToOpenPrinterSession()
 // so you should not call yourself PrOpen before printing
 char PA_OpenPrinterSession()
 {
-	EngineBlock eb={0};
+    EngineBlock eb={{0}};
 
 	Call4D( EX_OPEN_PRINTER_SESSION, &eb );
 	sErrorCode = (PA_ErrorCode)eb.fError;
@@ -5930,7 +5935,7 @@ char PA_OpenPrinterSession()
 // need to call PrClose yourself after printing.
 void PA_ClosePrinterSession()
 {
-	EngineBlock eb={0};
+    EngineBlock eb={{0}};
 
 	Call4D( EX_CLOSE_PRINTER_SESSION, &eb );
 	sErrorCode = (PA_ErrorCode)eb.fError;
@@ -7143,7 +7148,7 @@ sLONG_PTR PA_GetHWND( PA_WindowRef windowRef )
 sLONG_PTR	PA_GetMainWindowHWND()
 {
 	sLONG_PTR result = NULL;
-	EngineBlock	eb = {0};
+    EngineBlock	eb = {{0}};
 	Call4D( EX_GET_MAIN_MDI_WINDOW, &eb);
 	sErrorCode = (PA_ErrorCode)eb.fError;
 
@@ -8083,7 +8088,7 @@ void PA_Dial4DSetAreaHandler( PA_Dial4D dialog, PA_Unichar* variable, void* hand
 	eb.fParam2 = 6642;
 	eb.fParam3 = sBinaryFormat;
 	eb.fHandle = (PA_Handle) privateData;
-	eb.fLongint = (sLONG_PTR) handler;
+	eb.fLongint = (PA_long32)(sLONG_PTR) handler;
 	PA_CopyUnichars( variable, eb.fUString, sizeof(eb.fUString) );
 	eb.fError = eER_NoErr;
 	Call4D( EX_DIAL4D_SET_AREA_HANDLER, &eb );
@@ -8979,6 +8984,8 @@ void PA_UseQuartzAxis( PA_PluginParameters params,short *outAreaX,short *outArea
 			context = (CGContextRef) props.fMacPort;
 			break;
 		}
+        default:
+            break;
 	}
 	if(context!=NULL)
 	{
@@ -9020,6 +9027,8 @@ void PA_UseQuickdrawAxis( PA_PluginParameters params,short *outAreaX,short *outA
 			context = (CGContextRef) props.fMacPort;
 			break;
 		}
+        default:
+            break;
 	}
 	if(context!=NULL)
 	{
