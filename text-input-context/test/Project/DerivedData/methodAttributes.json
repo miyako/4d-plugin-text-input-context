@@ -1,19 +1,22 @@
 ﻿{
 	"methods": {
-		"test": {
-			"timeStamp": "2019-06-27T22:00:34.677Z"
+		"test_01": {
+			"timeStamp": "2019-06-27T22:12:24.820Z"
+		},
+		"test_02": {
+			"timeStamp": "2019-06-28T00:47:06.323Z",
+			"attributes": {
+				"preemptive": "capable"
+			}
 		},
 		"Method3": {
-			"timeStamp": "2019-06-27T15:02:52.652Z"
+			"timeStamp": "2019-06-28T00:32:02.846Z"
 		},
 		"Method1": {
 			"timeStamp": "2019-06-27T15:02:18.744Z"
 		},
 		"Method4": {
 			"timeStamp": "2019-06-27T15:52:23.406Z"
-		},
-		"(Method2)": {
-			"timeStamp": "2019-06-24T02:19:29.267Z"
 		}
 	}
 }

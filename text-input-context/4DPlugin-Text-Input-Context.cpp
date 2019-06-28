@@ -27,35 +27,33 @@ void CommandDispatcherInMainProcess (PA_long32 selector, PA_PluginParameters par
     switch(selector)
     {
             // --- Text Input Context
-            
-            /* PA_RunInMainProcess is not threadSafe */
-            
+                        
         case 1 :
-            PA_RunInMainProcess((PA_RunInMainProcessProcPtr)_o_INPUT_SOURCES_LIST, params);
+            _o_INPUT_SOURCES_LIST(params);
             break;
             
         case 2 :
-            PA_RunInMainProcess((PA_RunInMainProcessProcPtr)_o_Get_input_source, params);
+            _o_Get_input_source(params);
             break;
             
         case 3 :
-            PA_RunInMainProcess((PA_RunInMainProcessProcPtr)SET_INPUT_SOURCE, params);
+            SET_INPUT_SOURCE(params);
             break;
             
         case 4 :
-            PA_RunInMainProcess((PA_RunInMainProcessProcPtr)GET_INPUT_SOURCE_LOCALES, params);
+            GET_INPUT_SOURCE_LOCALES(params);
             break;
             
         case 5 :
-            PA_RunInMainProcess((PA_RunInMainProcessProcPtr)SET_INPUT_SOURCE_LOCALES, params);
+            SET_INPUT_SOURCE_LOCALES(params);
             break;
             
         case 6 :
-            INPUT_SOURCES_LIST(params);/* PA_RunInMainProcess not compatible with PA_CollectionRef params */
+            INPUT_SOURCES_LIST(params);
             break;
             
         case 7 :
-            Get_input_source(params);/* PA_RunInMainProcess not compatible with PA_ObjectRef params */
+            Get_input_source(params);
             break;
     }
 }

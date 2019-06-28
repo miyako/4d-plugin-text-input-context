@@ -9,13 +9,13 @@
 		"stamp": "2019-06-27T15:02:18.744Z"
 	},
 	"Sources/Methods/Method3.4dm": {
-		"startSelection": 0,
-		"endSelection": 0,
-		"firstSelectedLine": 2,
-		"lastSelectedLine": 2,
+		"startSelection": 15,
+		"endSelection": 15,
+		"firstSelectedLine": 11,
+		"lastSelectedLine": 11,
 		"folding": [],
 		"bookmarks": [],
-		"stamp": "2019-06-27T15:02:52.652Z"
+		"stamp": "2019-06-28T00:32:02.846Z"
 	},
 	"Sources/Methods/Method4.4dm": {
 		"startSelection": 64,
@@ -35,13 +35,13 @@
 		"bookmarks": [],
 		"stamp": "2019-06-27T22:12:24.820Z"
 	},
-	"Trash/Methods/(Method2).4dm": {
-		"startSelection": 34,
-		"endSelection": 34,
-		"firstSelectedLine": 62,
-		"lastSelectedLine": 62,
+	"Sources/Methods/test_02.4dm": {
+		"startSelection": 36,
+		"endSelection": 36,
+		"firstSelectedLine": 10,
+		"lastSelectedLine": 10,
 		"folding": [],
 		"bookmarks": [],
-		"stamp": "2019-06-24T02:19:29.267Z"
+		"stamp": "2019-06-28T00:47:06.323Z"
 	}
 }

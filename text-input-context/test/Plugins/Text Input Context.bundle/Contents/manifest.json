@@ -5,37 +5,37 @@
                  {
                  "theme": "Text Input Context",
                  "syntax": "_o_INPUT SOURCES LIST(&Y)",
-                 "threadSafe": false
+                 "threadSafe": true
                  },
                  {
                  "theme": "Text Input Context",
                  "syntax": "_o_Get input source:T",
-                 "threadSafe": false
+                 "threadSafe": true
                  },
                  {
                  "theme": "Text Input Context",
                  "syntax": "SET INPUT SOURCE(&T)",
-                 "threadSafe": false
+                 "threadSafe": true
                  },
                  {
                  "theme": "Text Input Context",
                  "syntax": "GET INPUT SOURCE LOCALES(&Y)",
-                 "threadSafe": false
+                 "threadSafe": true
                  },
                  {
                  "theme": "Text Input Context",
                  "syntax": "SET INPUT SOURCE LOCALES(&Y)",
-                 "threadSafe": false
+                 "threadSafe": true
                  },
                  {
                      "theme": "Text Input Context",
                      "syntax": "Input sources list:C",
-                     "threadSafe": false
+                     "threadSafe": true
                  },
                  {
                      "theme": "Text Input Context",
                      "syntax": "Get input source:J",
-                     "threadSafe": false
+                     "threadSafe": true
                  }
                  ]
 }
