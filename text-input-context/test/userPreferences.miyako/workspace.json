@@ -1,3 +1,28 @@
 ﻿{
-	"editors": []
+	"editors": [
+		{
+			"type": "form",
+			"id": 1,
+			"formName": "フォーム1"
+		},
+		{
+			"type": "method",
+			"id": 2147483638,
+			"codeDescriptor": {
+				"type": 1,
+				"methodName": "TEST_LIST"
+			}
+		},
+		{
+			"type": "explorer"
+		},
+		{
+			"type": "method",
+			"id": 2147483642,
+			"codeDescriptor": {
+				"type": 1,
+				"methodName": "TEST"
+			}
+		}
+	]
 }

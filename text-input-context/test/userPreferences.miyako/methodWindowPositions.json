@@ -34,5 +34,41 @@
 		"top": 395,
 		"width": 1138,
 		"height": 642
+	},
+	"Sources/Methods/test_01.4dm": {
+		"left": 398,
+		"top": 139,
+		"width": 625,
+		"height": 526
+	},
+	"Sources/Forms/フォーム1/ObjectMethods/Button.4dm": {
+		"left": 394,
+		"top": 444,
+		"width": 1074,
+		"height": 819
+	},
+	"Sources/Forms/フォーム1/ObjectMethods/Input.4dm": {
+		"left": 398,
+		"top": 139,
+		"width": 924,
+		"height": 526
+	},
+	"Sources/Methods/TEST.4dm": {
+		"left": 427,
+		"top": 191,
+		"width": 625,
+		"height": 526
+	},
+	"Sources/Methods/TEST_LIST.4dm": {
+		"left": 394,
+		"top": 444,
+		"width": 1074,
+		"height": 819
+	},
+	"Sources/Forms/フォーム1/ObjectMethods/Button1.4dm": {
+		"left": 394,
+		"top": 444,
+		"width": 1074,
+		"height": 819
 	}
 }
