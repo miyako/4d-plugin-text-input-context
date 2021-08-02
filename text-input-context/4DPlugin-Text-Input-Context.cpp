@@ -97,6 +97,49 @@ void _o_INPUT_SOURCES_LIST(PA_PluginParameters params) {
     Param1.toParamAtIndex(pParams, 1);
 }
 
+static void main_INPUT_SOURCES_LIST(NSArray<NSString *> **keyboardInputSources) {
+    
+   NSTextInputContext *currentInputContext = [NSTextInputContext currentInputContext];
+
+    if(currentInputContext)
+    {
+        *keyboardInputSources = currentInputContext.keyboardInputSources;
+    }
+}
+
+void INPUT_SOURCES_LIST(PA_PluginParameters params) {
+    
+    PA_CollectionRef sources = PA_CreateCollection();
+    
+    NSArray<NSString *> *keyboardInputSources = nil;
+    
+    PA_RunInMainProcess((PA_RunInMainProcessProcPtr)main_INPUT_SOURCES_LIST, &keyboardInputSources);
+    
+    if(keyboardInputSources) {
+
+        for (NSUInteger i = 0; i < [keyboardInputSources count]; ++i)
+        {
+            NSString *keyboardInputSource = [keyboardInputSources objectAtIndex:i];
+            
+            PA_ObjectRef source = PA_CreateObject();
+
+            ob_set_s(source, L"id", [keyboardInputSource UTF8String]);
+            ob_set_s(source, L"name", [[NSTextInputContext localizedNameForInputSource:keyboardInputSource] UTF8String]);
+
+            PA_Variable vObj = PA_CreateVariable(eVK_Object);
+            PA_SetObjectVariable(&vObj, source);
+            PA_SetCollectionElement(sources, PA_GetCollectionLength(sources), vObj);
+            PA_ClearVariable(&vObj);
+        }
+        
+    }
+
+    PA_ReturnCollection(params, sources);
+}
+
+
+
+
 static void main_SET_INPUT_SOURCE_LOCALES(NSMutableArray<NSString *> *allowedInputSourceLocales) {
     
     NSTextInputContext *currentInputContext = [NSTextInputContext currentInputContext];
@@ -181,46 +224,6 @@ void GET_INPUT_SOURCE_LOCALES(PA_PluginParameters params) {
     }
 
     Param1.toParamAtIndex(pParams, 1);
-}
-
-static void main_INPUT_SOURCES_LIST(NSArray<NSString *> **keyboardInputSources) {
-    
-   NSTextInputContext *currentInputContext = [NSTextInputContext currentInputContext];
-
-    if(currentInputContext)
-    {
-        *keyboardInputSources = currentInputContext.keyboardInputSources;
-    }
-}
-
-void INPUT_SOURCES_LIST(PA_PluginParameters params) {
-    
-    PA_CollectionRef sources = PA_CreateCollection();
-    
-    NSArray<NSString *> *keyboardInputSources = nil;
-    
-    PA_RunInMainProcess((PA_RunInMainProcessProcPtr)main_INPUT_SOURCES_LIST, &keyboardInputSources);
-    
-    if(keyboardInputSources) {
-
-        for (NSUInteger i = 0; i < [keyboardInputSources count]; ++i)
-        {
-            NSString *keyboardInputSource = [keyboardInputSources objectAtIndex:i];
-            
-            PA_ObjectRef source = PA_CreateObject();
-
-            ob_set_s(source, L"id", [keyboardInputSource UTF8String]);
-            ob_set_s(source, L"name", [[NSTextInputContext localizedNameForInputSource:keyboardInputSource] UTF8String]);
-
-            PA_Variable vObj = PA_CreateVariable(eVK_Object);
-            PA_SetObjectVariable(&vObj, source);
-            PA_SetCollectionElement(sources, PA_GetCollectionLength(sources), vObj);
-            PA_ClearVariable(&vObj);
-        }
-        
-    }
-
-    PA_ReturnCollection(params, sources);
 }
 
 static void main_Get_input_source(NSString **selectedKeyboardInputSource) {
@@ -391,6 +394,9 @@ static void main_SET_INPUT_SOURCE(NSString *selectedKeyboardInputSource) {
     if(currentInputContext)
     {
         currentInputContext.selectedKeyboardInputSource = selectedKeyboardInputSource;
+
+        currentInputContext.allowedInputSourceLocales = @[NSAllRomanInputSourcesLocaleIdentifier];
+        
     }
     
 }
@@ -410,3 +416,46 @@ void SET_INPUT_SOURCE(PA_PluginParameters params) {
     [selectedKeyboardInputSource release];
 
 }
+
+/*
+ 
+         
+         CFArrayRef sources = TISCreateInputSourceList(NULL, FALSE);
+         
+         if(sources) {
+             
+             for(NSUInteger i = 0; i < CFArrayGetCount(sources); ++ i) {
+                 
+                 TISInputSourceRef source = (TISInputSourceRef)CFArrayGetValueAtIndex(sources, i);
+                 NSString *inputSourceID = (NSString *)TISGetInputSourceProperty(source, kTISPropertyInputSourceID);
+                 if(![inputSourceID isEqualToString:selectedKeyboardInputSource]) {
+                     
+     
+                      use filter dictionary to check validity
+                      https:github.com/harciga/text-input-source-selector/blob/master/textinputsource/main.c
+                    
+                     CFStringRef keys[] = { kTISPropertyInputSourceID };
+                     CFStringRef values[] = { (CFStringRef)inputSourceID };
+                     CFDictionaryRef dict = CFDictionaryCreate(kCFAllocatorDefault,
+                                                               (const void **)keys,
+                                                               (const void **)values,
+                                                               1, NULL, NULL);
+                     CFArrayRef array = TISCreateInputSourceList(dict, true);
+                     CFRelease(dict);
+                     if (array)
+                     {
+                         TISInputSourceRef tis = (TISInputSourceRef) CFArrayGetValueAtIndex(array, 0);
+                        
+                         if(TISGetInputSourceProperty(tis, kTISPropertyInputSourceIsSelectCapable)){
+ //                            TISDeselectInputSource(tis);//removes from the menu!!!
+ //                            TISDisableInputSource(tis);
+                         }
+
+                         CFRelease(array);
+                         
+                     }
+                 }
+             }
+             CFRelease(sources);
+         }
+ */

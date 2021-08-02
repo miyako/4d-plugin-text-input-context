@@ -1,0 +1,81 @@
+{
+	"name": "Text Input Service",
+	"id": 20000,
+	"commands": [
+		{
+			"theme": "Input Source",
+			"syntax": "INPUT SOURCE Get for language(&T):T",
+			"threadSafe": true
+		},
+		{
+			"theme": "Input Source",
+			"syntax": "INPUT SOURCE LIST(&Y)",
+			"threadSafe": false
+		},
+		{
+			"theme": "Input Source",
+			"syntax": "INPUT SOURCE SET(&T)",
+			"threadSafe": true
+		},
+		{
+			"theme": "Input Source",
+			"syntax": "INPUT SOURCE Get:T",
+			"threadSafe": true
+		},
+		{
+			"theme": "Input Source",
+			"syntax": "INPUT SOURCE Get category(&T):T",
+			"threadSafe": true
+		},
+		{
+			"theme": "Input Source",
+			"syntax": "INPUT SOURCE Get ASCII:T",
+			"threadSafe": true
+		},
+		{
+			"theme": "Input Source",
+			"syntax": "INPUT SOURCE Get icon(&T):P",
+			"threadSafe": false
+		},
+		{
+			"theme": "Input Source",
+			"syntax": "INPUT SOURCE Get name(&T):T",
+			"threadSafe": true
+		},
+		{
+			"theme": "Input Source",
+			"syntax": "INPUT SOURCE Get type(&T):T",
+			"threadSafe": true
+		},
+		{
+			"theme": "Input Source",
+			"syntax": "INPUT SOURCE DISABLE(&T)",
+			"threadSafe": true
+		},
+		{
+			"theme": "Input Source",
+			"syntax": "INPUT SOURCE ENABLE(&T)",
+			"threadSafe": true
+		},
+		{
+			"theme": "Keyboard Layout",
+			"syntax": "KEYBOARD LAYOUT Get ASCII:T",
+			"threadSafe": true
+		},
+		{
+			"theme": "Keyboard Layout",
+			"syntax": "KEYBOARD LAYOUT SET OVERRIDE(&T)",
+			"threadSafe": true
+		},
+		{
+			"theme": "Keyboard Layout",
+			"syntax": "KEYBOARD LAYOUT Get:T",
+			"threadSafe": true
+		},
+		{
+			"theme": "Keyboard Layout",
+			"syntax": "KEYBOARD LAYOUT Get override:T",
+			"threadSafe": true
+		}
+	]
+}

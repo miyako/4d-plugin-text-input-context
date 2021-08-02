@@ -7,14 +7,13 @@
 		},
 		{
 			"type": "method",
-			"id": 2147483638,
+			"id": 2147483635,
 			"codeDescriptor": {
-				"type": 1,
-				"methodName": "TEST_LIST"
+				"type": 2,
+				"formName": "フォーム1",
+				"objectName": "Button",
+				"methodPath": "/SOURCES/Forms/フォーム1/ObjectMethods/Button.4dm"
 			}
-		},
-		{
-			"type": "explorer"
 		},
 		{
 			"type": "method",
@@ -22,6 +21,27 @@
 			"codeDescriptor": {
 				"type": 1,
 				"methodName": "TEST"
+			}
+		},
+		{
+			"type": "explorer"
+		},
+		{
+			"type": "method",
+			"id": 2147483636,
+			"codeDescriptor": {
+				"type": 2,
+				"formName": "フォーム1",
+				"objectName": "Button1",
+				"methodPath": "/SOURCES/Forms/フォーム1/ObjectMethods/Button1.4dm"
+			}
+		},
+		{
+			"type": "method",
+			"id": 2147483638,
+			"codeDescriptor": {
+				"type": 1,
+				"methodName": "TEST_LIST"
 			}
 		}
 	]

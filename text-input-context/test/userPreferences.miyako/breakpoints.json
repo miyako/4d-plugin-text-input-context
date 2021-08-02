@@ -1,9 +1,25 @@
 ﻿[
 	{
-		"line": 2,
+		"line": 3,
 		"method": {
 			"type": 1,
 			"methodName": "TEST_LIST"
+		}
+	},
+	{
+		"line": 2,
+		"method": {
+			"type": 2,
+			"formName": "フォーム1",
+			"objectName": "Button1",
+			"methodPath": "/SOURCES/Forms/フォーム1/ObjectMethods/Button1.4dm"
+		}
+	},
+	{
+		"line": 6,
+		"method": {
+			"type": 1,
+			"methodName": "TEST"
 		}
 	}
 ]
