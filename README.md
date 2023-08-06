@@ -5,8 +5,7 @@ Better way to control text input source from 4D
 ![platform](https://img.shields.io/static/v1?label=platform&message=mac-intel%20|%20mac-arm&color=blue)
 [![license](https://img.shields.io/github/license/miyako/4d-plugin-text-input-context)](LICENSE)
 ![downloads](https://img.shields.io/github/downloads/miyako/4d-plugin-text-input-context/total)
-
-**Note**: for v17 and earlier, move `manifest.json` to `Contents`
+![deprecated](https://img.shields.io/badge/-deprecated-inactive)
 
 ### Syntax
 
