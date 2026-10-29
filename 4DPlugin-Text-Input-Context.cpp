@@ -10,8 +10,31 @@
 
 #include "4DPlugin-Text-Input-Context.h"
 
+#include <string>
+#include <vector>
+
+/*
+ Review changes (source-level, not compile-tested in the review environment):
+
+ - all AppKit / Text Input Source (TIS) / NSImage work now runs inside the
+   PA_RunInMainProcess callback; the callback copies (or retains) its results
+   so nothing autoreleased crosses back to the calling thread
+ - every Cocoa code path is wrapped in @autoreleasepool
+ - nil / NULL guards before UTF8String, ob_set_s and ImageIO calls
+ - commands that return a value always reach PA_Return* (local try/catch)
+ - isLike: replaced with isEqualToString: / length checks
+ - empty locale array is passed to AppKit as nil ("all locales allowed")
+ - UTF-16 copy via CFStringGetCharacters instead of getCString:...NSUnicodeStringEncoding
+ - icon encoding: one helper, NULL-checked, no empty mutable dictionary,
+   "public.tiff" instead of the deprecated kUTTypeTIFF
+
+ Unchanged on purpose (behavioural decisions left to the author):
+ - manifest "threadSafe": true combined with PA_RunInMainProcess
+ - SET INPUT SOURCE also restricting allowed locales to Roman input sources
+ */
+
 void PluginMain(PA_long32 selector, PA_PluginParameters params) {
-    
+
 	try
 	{
 		CommandDispatcherInMainProcess (selector, params);
@@ -23,398 +46,635 @@ void PluginMain(PA_long32 selector, PA_PluginParameters params) {
 }
 
 void CommandDispatcherInMainProcess (PA_long32 selector, PA_PluginParameters params) {
-    
+
     switch(selector)
     {
             // --- Text Input Context
-                        
+
         case 1 :
             _o_INPUT_SOURCES_LIST(params);
             break;
-            
+
         case 2 :
             _o_Get_input_source(params);
             break;
-            
+
         case 3 :
             SET_INPUT_SOURCE(params);
             break;
-            
+
         case 4 :
             GET_INPUT_SOURCE_LOCALES(params);
             break;
-            
+
         case 5 :
             SET_INPUT_SOURCE_LOCALES(params);
             break;
-            
+
         case 6 :
             INPUT_SOURCES_LIST(params);
             break;
-            
+
         case 7 :
             Get_input_source(params);
             break;
     }
 }
 
+// ------------------------------------ helpers -----------------------------------
+
+/* copy an NSString to UTF-8; false (and out untouched) if str is nil or not convertible */
+static bool copyUTF8(NSString *str, std::string &out) {
+
+    if(!str) return false;
+
+    const char *s = [str UTF8String];
+
+    if(!s) return false;
+
+    out = s;
+
+    return true;
+}
+
+/* copy an NSString to a zero-terminated UTF-16 buffer (no BOM) */
+static void copyUTF16(NSString *str, std::vector<PA_Unichar> &out) {
+
+    CFIndex len = str ? CFStringGetLength((CFStringRef)str) : 0;
+
+    out.assign((size_t)len + 1, 0);
+
+    if(len > 0)
+    {
+        CFStringGetCharacters((CFStringRef)str, CFRangeMake(0, len), (UniChar *)&out[0]);
+    }
+}
+
+/* encode an NSImage as TIFF bytes; out stays empty on any failure */
+static void copyTIFF(NSImage *icon, std::vector<uint8_t> &out) {
+
+    if(!icon) return;
+
+    NSRect imageRect = NSMakeRect(0, 0, icon.size.width, icon.size.height);
+
+    CGImageRef image = [icon CGImageForProposedRect:&imageRect context:NULL hints:NULL];
+
+    if(!image) return;
+
+    CFMutableDataRef data = CFDataCreateMutable(kCFAllocatorDefault, 0);
+
+    if(!data) return;
+
+    CGImageDestinationRef destination = CGImageDestinationCreateWithData(data, CFSTR("public.tiff"), 1, NULL);
+
+    if(destination)
+    {
+        CGImageDestinationAddImage(destination, image, NULL);
+
+        if(CGImageDestinationFinalize(destination))
+        {
+            const UInt8 *bytes = CFDataGetBytePtr(data);
+            CFIndex length = CFDataGetLength(data);
+
+            if((bytes) && (length > 0))
+            {
+                out.assign(bytes, bytes + length);
+            }
+        }
+
+        CFRelease(destination);
+    }
+
+    CFRelease(data);
+}
+
 // ------------------------------ Text Input Context ------------------------------
 
-static void main_o_INPUT_SOURCES_LIST(NSArray<NSString *> **keyboardInputSources) {
-    
-    NSTextInputContext *currentInputContext = [NSTextInputContext currentInputContext];
-    
-    if(currentInputContext)
-    {
-        *keyboardInputSources = currentInputContext.keyboardInputSources;
+/* main thread: returns a +1 (owned) copy of the list, or nil */
+static void main_copy_keyboardInputSources(NSArray<NSString *> **keyboardInputSources) {
+
+    @autoreleasepool {
+
+        try
+        {
+            NSTextInputContext *currentInputContext = [NSTextInputContext currentInputContext];
+
+            if(currentInputContext)
+            {
+                *keyboardInputSources = [currentInputContext.keyboardInputSources copy];
+            }
+        }
+        catch(...)
+        {
+
+        }
     }
 }
 
 void _o_INPUT_SOURCES_LIST(PA_PluginParameters params) {
-    
-    /* -[NSTextInputContext keyboardInputSources] must be used from main thread only */
-    
-    NSArray<NSString *> *keyboardInputSources = nil;
-    
-    PA_RunInMainProcess((PA_RunInMainProcessProcPtr)main_o_INPUT_SOURCES_LIST, &keyboardInputSources);
-    
-    PackagePtr pParams = (PackagePtr)params->fParameters;
-    
-    ARRAY_TEXT Param1;
-    Param1.setSize(0);
-        
-    if(keyboardInputSources)
-    {
-        Param1.appendUTF16String(@"");
 
-        for (NSUInteger i = 0; i < [keyboardInputSources count]; ++i)
+    @autoreleasepool {
+
+        PackagePtr pParams = (PackagePtr)params->fParameters;
+
+        ARRAY_TEXT Param1;
+        Param1.setSize(0);
+
+        NSArray<NSString *> *keyboardInputSources = nil;
+
+        try
         {
-            NSString *keyboardInputSource = [keyboardInputSources objectAtIndex:i];
-            Param1.appendUTF16String(keyboardInputSource);
-        }
-    }
+            PA_RunInMainProcess((PA_RunInMainProcessProcPtr)main_copy_keyboardInputSources, &keyboardInputSources);
 
-    Param1.toParamAtIndex(pParams, 1);
+            if(keyboardInputSources)
+            {
+                Param1.appendUTF16String(@"");
+
+                for (NSString *keyboardInputSource in keyboardInputSources)
+                {
+                    Param1.appendUTF16String(keyboardInputSource);
+                }
+            }
+        }
+        catch(...)
+        {
+
+        }
+
+        [keyboardInputSources release];
+
+        Param1.toParamAtIndex(pParams, 1);
+    }
 }
 
-static void main_INPUT_SOURCES_LIST(NSArray<NSString *> **keyboardInputSources) {
-    
-   NSTextInputContext *currentInputContext = [NSTextInputContext currentInputContext];
+struct input_source_entry_t {
+    std::string id;
+    std::string name;
+    bool hasName = false;
+};
 
-    if(currentInputContext)
-    {
-        *keyboardInputSources = currentInputContext.keyboardInputSources;
+static void main_INPUT_SOURCES_LIST(std::vector<input_source_entry_t> *entries) {
+
+    @autoreleasepool {
+
+        try
+        {
+            NSTextInputContext *currentInputContext = [NSTextInputContext currentInputContext];
+
+            if(currentInputContext)
+            {
+                NSArray<NSString *> *keyboardInputSources = currentInputContext.keyboardInputSources;
+
+                for (NSString *keyboardInputSource in keyboardInputSources)
+                {
+                    input_source_entry_t entry;
+
+                    if(copyUTF8(keyboardInputSource, entry.id))
+                    {
+                        entry.hasName = copyUTF8([NSTextInputContext localizedNameForInputSource:keyboardInputSource], entry.name);
+                        entries->push_back(entry);
+                    }
+                }
+            }
+        }
+        catch(...)
+        {
+
+        }
     }
 }
 
 void INPUT_SOURCES_LIST(PA_PluginParameters params) {
-    
-    PA_CollectionRef sources = PA_CreateCollection();
-    
-    NSArray<NSString *> *keyboardInputSources = nil;
-    
-    PA_RunInMainProcess((PA_RunInMainProcessProcPtr)main_INPUT_SOURCES_LIST, &keyboardInputSources);
-    
-    if(keyboardInputSources) {
 
-        for (NSUInteger i = 0; i < [keyboardInputSources count]; ++i)
+    PA_CollectionRef sources = PA_CreateCollection();
+
+    try
+    {
+        std::vector<input_source_entry_t> entries;
+
+        PA_RunInMainProcess((PA_RunInMainProcessProcPtr)main_INPUT_SOURCES_LIST, &entries);
+
+        for (size_t i = 0; i < entries.size(); ++i)
         {
-            NSString *keyboardInputSource = [keyboardInputSources objectAtIndex:i];
-            
             PA_ObjectRef source = PA_CreateObject();
 
-            ob_set_s(source, L"id", [keyboardInputSource UTF8String]);
-            ob_set_s(source, L"name", [[NSTextInputContext localizedNameForInputSource:keyboardInputSource] UTF8String]);
+            ob_set_s(source, L"id", entries[i].id.c_str());
+
+            if(entries[i].hasName)
+            {
+                ob_set_s(source, L"name", entries[i].name.c_str());
+            }
 
             PA_Variable vObj = PA_CreateVariable(eVK_Object);
             PA_SetObjectVariable(&vObj, source);
             PA_SetCollectionElement(sources, PA_GetCollectionLength(sources), vObj);
             PA_ClearVariable(&vObj);
         }
-        
+    }
+    catch(...)
+    {
+
     }
 
     PA_ReturnCollection(params, sources);
 }
 
+static void main_SET_INPUT_SOURCE_LOCALES(NSArray<NSString *> *allowedInputSourceLocales) {
 
+    @autoreleasepool {
 
+        try
+        {
+            NSTextInputContext *currentInputContext = [NSTextInputContext currentInputContext];
 
-static void main_SET_INPUT_SOURCE_LOCALES(NSMutableArray<NSString *> *allowedInputSourceLocales) {
-    
-    NSTextInputContext *currentInputContext = [NSTextInputContext currentInputContext];
-    
-    if(currentInputContext)
-    {
-        currentInputContext.allowedInputSourceLocales = allowedInputSourceLocales;
+            if(currentInputContext)
+            {
+                /* nil means "no restriction" */
+                currentInputContext.allowedInputSourceLocales = [allowedInputSourceLocales count] ? allowedInputSourceLocales : nil;
+            }
+        }
+        catch(...)
+        {
+
+        }
     }
-    
 }
 
 void SET_INPUT_SOURCE_LOCALES(PA_PluginParameters params) {
-    
-    PackagePtr pParams = (PackagePtr)params->fParameters;
-    
-    ARRAY_TEXT Param1;
 
-    Param1.fromParamAtIndex(pParams, 1);
+    @autoreleasepool {
 
-    NSMutableArray<NSString *> *allowedInputSourceLocales = [[NSMutableArray<NSString *> alloc]initWithCapacity:Param1.getSize()];
-    
-    for(int i = 1; i < Param1.getSize(); ++i)
-    {
-        NSString *allowedInputSourceLocale = Param1.copyUTF16StringAtIndex(i);
-        
-        if([allowedInputSourceLocale isLike:@"ALL ROMAN INPUT SOURCES"])
+        PackagePtr pParams = (PackagePtr)params->fParameters;
+
+        ARRAY_TEXT Param1;
+
+        Param1.fromParamAtIndex(pParams, 1);
+
+        NSMutableArray<NSString *> *allowedInputSourceLocales = [[NSMutableArray<NSString *> alloc]initWithCapacity:Param1.getSize()];
+
+        try
         {
-            [allowedInputSourceLocales addObject:NSAllRomanInputSourcesLocaleIdentifier];
-        }else{
-            if(![allowedInputSourceLocale isLike:@""])
+            /* element 0 of a 4D array is skipped */
+            for(size_t i = 1; i < (size_t)Param1.getSize(); ++i)
             {
-                [allowedInputSourceLocales addObject:allowedInputSourceLocale];
+                NSString *allowedInputSourceLocale = Param1.copyUTF16StringAtIndex((uint32_t)i);
+
+                if(allowedInputSourceLocale)
+                {
+                    if([allowedInputSourceLocale isEqualToString:@"ALL ROMAN INPUT SOURCES"])
+                    {
+                        [allowedInputSourceLocales addObject:NSAllRomanInputSourcesLocaleIdentifier];
+                    }
+                    else if([allowedInputSourceLocale length] != 0)
+                    {
+                        [allowedInputSourceLocales addObject:allowedInputSourceLocale];
+                    }
+
+                    [allowedInputSourceLocale release];
+                }
             }
+
+            PA_RunInMainProcess((PA_RunInMainProcessProcPtr)main_SET_INPUT_SOURCE_LOCALES, allowedInputSourceLocales);
         }
-        
-        [allowedInputSourceLocale release];
+        catch(...)
+        {
+
+        }
+
+        [allowedInputSourceLocales release];
     }
-    
-    PA_RunInMainProcess((PA_RunInMainProcessProcPtr)main_SET_INPUT_SOURCE_LOCALES, allowedInputSourceLocales);
-    
-    [allowedInputSourceLocales release];
 }
 
+/* main thread: returns a +1 (owned) copy of the list, or nil */
 static void main_GET_INPUT_SOURCE_LOCALES(NSArray<NSString *> **allowedInputSourceLocales) {
-    
-   NSTextInputContext *currentInputContext = [NSTextInputContext currentInputContext];
-    
-    if(currentInputContext)
-    {
-        *allowedInputSourceLocales = currentInputContext.allowedInputSourceLocales;
+
+    @autoreleasepool {
+
+        try
+        {
+            NSTextInputContext *currentInputContext = [NSTextInputContext currentInputContext];
+
+            if(currentInputContext)
+            {
+                *allowedInputSourceLocales = [currentInputContext.allowedInputSourceLocales copy];
+            }
+        }
+        catch(...)
+        {
+
+        }
     }
-    
 }
 
 void GET_INPUT_SOURCE_LOCALES(PA_PluginParameters params) {
-    
-    PackagePtr pParams = (PackagePtr)params->fParameters;
-    
-    ARRAY_TEXT Param1;
-    Param1.setSize(0);
-    
-    NSArray<NSString *> *allowedInputSourceLocales = nil;
-    
-    PA_RunInMainProcess((PA_RunInMainProcessProcPtr)main_GET_INPUT_SOURCE_LOCALES, &allowedInputSourceLocales);
-    
-    if(allowedInputSourceLocales) {
 
-        Param1.appendUTF16String(@"");
-            
-        for (NSUInteger i = 0; i < [allowedInputSourceLocales count]; ++i)
+    @autoreleasepool {
+
+        PackagePtr pParams = (PackagePtr)params->fParameters;
+
+        ARRAY_TEXT Param1;
+        Param1.setSize(0);
+
+        NSArray<NSString *> *allowedInputSourceLocales = nil;
+
+        try
         {
-            NSString *allowedInputSourceLocale = [allowedInputSourceLocales objectAtIndex:i];
-            
-            if([allowedInputSourceLocale isLike:NSAllRomanInputSourcesLocaleIdentifier])
+            PA_RunInMainProcess((PA_RunInMainProcessProcPtr)main_GET_INPUT_SOURCE_LOCALES, &allowedInputSourceLocales);
+
+            if(allowedInputSourceLocales)
             {
-                Param1.appendUTF16String(@"ALL ROMAN INPUT SOURCES");
-            }else{
-                Param1.appendUTF16String(allowedInputSourceLocale);
+                Param1.appendUTF16String(@"");
+
+                for (NSString *allowedInputSourceLocale in allowedInputSourceLocales)
+                {
+                    if([allowedInputSourceLocale isEqualToString:NSAllRomanInputSourcesLocaleIdentifier])
+                    {
+                        Param1.appendUTF16String(@"ALL ROMAN INPUT SOURCES");
+                    }else{
+                        Param1.appendUTF16String(allowedInputSourceLocale);
+                    }
+                }
             }
         }
-        
-    }
-
-    Param1.toParamAtIndex(pParams, 1);
-}
-
-static void main_Get_input_source(NSString **selectedKeyboardInputSource) {
-    
-    NSTextInputContext *currentInputContext = [NSTextInputContext currentInputContext];
-    
-    if(currentInputContext)
-    {
-        *selectedKeyboardInputSource = currentInputContext.selectedKeyboardInputSource;
-    }
-    
-}
-
-void Get_input_source(PA_PluginParameters params) {
-    
-    PA_ObjectRef returnValue = PA_CreateObject();
-    
-    NSString *selectedKeyboardInputSource = nil;
-    
-    PA_RunInMainProcess((PA_RunInMainProcessProcPtr)main_Get_input_source, &selectedKeyboardInputSource);
-    
-    if(selectedKeyboardInputSource)
-    {
-        /* these are obtained using cocoa API */
-        
-        ob_set_s(returnValue, L"id", [selectedKeyboardInputSource UTF8String]);
-        ob_set_s(returnValue, L"name", [[NSTextInputContext localizedNameForInputSource:selectedKeyboardInputSource] UTF8String]);
-        
-        /* these are obtained using carbon API */
-        
-        TISInputSourceRef inputSource = TISCopyCurrentKeyboardInputSource();
-        if(inputSource)
+        catch(...)
         {
+
+        }
+
+        [allowedInputSourceLocales release];
+
+        Param1.toParamAtIndex(pParams, 1);
+    }
+}
+
+struct input_source_info_t {
+    bool found = false;
+    std::string id;
+    bool hasName = false;
+    std::string name;
+    bool hasCategory = false;
+    std::string category;
+    bool hasType = false;
+    std::string type;
+    bool hasLanguages = false;
+    std::vector< std::vector<PA_Unichar> > languages;
+    std::vector<uint8_t> icon;
+};
+
+static void main_Get_input_source(input_source_info_t *info) {
+
+    @autoreleasepool {
+
+        try
+        {
+            NSTextInputContext *currentInputContext = [NSTextInputContext currentInputContext];
+
+            if(!currentInputContext) return;
+
+            /* these are obtained using cocoa API */
+
+            NSString *selectedKeyboardInputSource = currentInputContext.selectedKeyboardInputSource;
+
+            if(!copyUTF8(selectedKeyboardInputSource, info->id)) return;
+
+            info->found = true;
+
+            info->hasName = copyUTF8([NSTextInputContext localizedNameForInputSource:selectedKeyboardInputSource], info->name);
+
+            /* these are obtained using carbon API (main thread only) */
+
+            TISInputSourceRef inputSource = TISCopyCurrentKeyboardInputSource();
+
+            if(!inputSource) return;
+
             CFStringRef category = (CFStringRef)TISGetInputSourceProperty(inputSource, kTISPropertyInputSourceCategory);
             if(category)
             {
-                ob_set_s(returnValue, L"category", [(__bridge NSString *)category UTF8String]);
+                info->hasCategory = copyUTF8((__bridge NSString *)category, info->category);
             }
+
             CFStringRef type = (CFStringRef)TISGetInputSourceProperty(inputSource, kTISPropertyInputSourceType);
             if(type)
             {
-                ob_set_s(returnValue, L"type", [(__bridge NSString *)type UTF8String]);
+                info->hasType = copyUTF8((__bridge NSString *)type, info->type);
             }
-            
+
             CFArrayRef languages = (CFArrayRef)TISGetInputSourceProperty(inputSource, kTISPropertyInputSourceLanguages);
             if(languages)
             {
-                PA_CollectionRef colLanguages = PA_CreateCollection();
-                
-                for(CFIndex i =0; i < CFArrayGetCount(languages); ++i)
+                info->hasLanguages = true;
+
+                CFIndex count = CFArrayGetCount(languages);
+
+                for(CFIndex i = 0; i < count; ++i)
                 {
-                    CFStringRef language = (CFStringRef)CFArrayGetValueAtIndex(languages, i);
-                    if(language)
+                    CFTypeRef language = CFArrayGetValueAtIndex(languages, i);
+
+                    if((language) && (CFGetTypeID(language) == CFStringGetTypeID()))
                     {
-                        NSString *__language = (__bridge NSString *)language;
-                        NSUInteger len = [__language length];
-                        size_t size = (len * sizeof(PA_Unichar)) + sizeof(PA_Unichar);
-                        std::vector<uint8_t> buf(size);
-                        PA_Unistring uStr;
-                        
-                        if([__language getCString:(char *)&buf[0] maxLength:size encoding:NSUnicodeStringEncoding])
-                        {
-                            uStr = PA_CreateUnistring((PA_Unichar *)&buf[0]);
-                            PA_Variable vObj = PA_CreateVariable(eVK_Unistring);
-                            PA_SetStringVariable(&vObj, &uStr);
-                            PA_SetCollectionElement(colLanguages, PA_GetCollectionLength(colLanguages), vObj);
-                            PA_ClearVariable(&vObj);
-                        }
+                        std::vector<PA_Unichar> buf;
+                        copyUTF16((__bridge NSString *)language, buf);
+                        info->languages.push_back(buf);
                     }
                 }
-                
-                ob_set_c(returnValue, L"languages", colLanguages);
             }
-            
-            NSImage *icon;
-            NSURL *url = (NSURL *)TISGetInputSourceProperty(inputSource, kTISPropertyIconImageURL);
+
+            NSURL *url = (__bridge NSURL *)TISGetInputSourceProperty(inputSource, kTISPropertyIconImageURL);
+
             if(url)
             {
-                icon = [[NSImage alloc]initWithContentsOfURL:url];
+                NSImage *icon = [[NSImage alloc]initWithContentsOfURL:url];
+
                 if(!icon)
                 {
                     //the extension is sometimes wrong; try again png -> tiff
-                    url = [url.URLByDeletingPathExtension URLByAppendingPathExtension:@"tiff"];
-                    icon = [[NSImage alloc]initWithContentsOfURL:url];
+                    NSURL *tiffURL = [url.URLByDeletingPathExtension URLByAppendingPathExtension:@"tiff"];
+                    icon = [[NSImage alloc]initWithContentsOfURL:tiffURL];
                 }
-                if(icon)
-                {
-                    //return picture without memory leak; avoid the use of - TIFFRepresentation
-                    NSRect imageRect = NSMakeRect(0, 0, icon.size.width , icon.size.height);
-                    CGImageRef image = [icon CGImageForProposedRect:(NSRect *)&imageRect context:NULL hints:NULL];
-                    CFMutableDataRef data = CFDataCreateMutable(kCFAllocatorDefault, 0);
-                    CGImageDestinationRef destination = CGImageDestinationCreateWithData(data, kUTTypeTIFF, 1, NULL);
-                    CFMutableDictionaryRef properties = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, NULL, NULL);
-                    CGImageDestinationAddImage(destination, image, properties);
-                    CGImageDestinationFinalize(destination);
-                    PA_Picture picture = PA_CreatePicture((void *)CFDataGetBytePtr(data), (PA_long32)CFDataGetLength(data));
-                    ob_set_p(returnValue, L"icon", picture);
-                    CFRelease(destination);
-                    CFRelease(properties);
-                    CFRelease(data);
-                    [icon release];
-                }
+
+                //return picture without memory leak; avoid the use of - TIFFRepresentation
+                copyTIFF(icon, info->icon);
+                [icon release];
             }
             else
             {
                 IconRef iconRef = (IconRef)TISGetInputSourceProperty(inputSource, kTISPropertyIconRef);
+
                 if(iconRef)
                 {
                     NSImage *icon = [[NSImage alloc]initWithIconRef:iconRef];
-                    //return picture without memory leak; avoid the use of - TIFFRepresentation
-                    NSRect imageRect = NSMakeRect(0, 0, icon.size.width , icon.size.height);
-                    CGImageRef image = [icon CGImageForProposedRect:(NSRect *)&imageRect context:NULL hints:NULL];
-                    CFMutableDataRef data = CFDataCreateMutable(kCFAllocatorDefault, 0);
-                    CGImageDestinationRef destination = CGImageDestinationCreateWithData(data, kUTTypeTIFF, 1, NULL);
-                    CFMutableDictionaryRef properties = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, NULL, NULL);
-                    CGImageDestinationAddImage(destination, image, properties);
-                    CGImageDestinationFinalize(destination);
-                    PA_Picture picture = PA_CreatePicture((void *)CFDataGetBytePtr(data), (PA_long32)CFDataGetLength(data));
-                    ob_set_p(returnValue, L"icon", picture);
-                    CFRelease(destination);
-                    CFRelease(properties);
-                    CFRelease(data);
+                    copyTIFF(icon, info->icon);
                     [icon release];
                 }
             }
-            
+
             CFRelease(inputSource);
         }
+        catch(...)
+        {
+
+        }
     }
-    
+}
+
+void Get_input_source(PA_PluginParameters params) {
+
+    PA_ObjectRef returnValue = PA_CreateObject();
+
+    try
+    {
+        input_source_info_t info;
+
+        PA_RunInMainProcess((PA_RunInMainProcessProcPtr)main_Get_input_source, &info);
+
+        if(info.found)
+        {
+            ob_set_s(returnValue, L"id", info.id.c_str());
+
+            if(info.hasName)
+            {
+                ob_set_s(returnValue, L"name", info.name.c_str());
+            }
+
+            if(info.hasCategory)
+            {
+                ob_set_s(returnValue, L"category", info.category.c_str());
+            }
+
+            if(info.hasType)
+            {
+                ob_set_s(returnValue, L"type", info.type.c_str());
+            }
+
+            if(info.hasLanguages)
+            {
+                PA_CollectionRef colLanguages = PA_CreateCollection();
+
+                for(size_t i = 0; i < info.languages.size(); ++i)
+                {
+                    PA_Unistring uStr = PA_CreateUnistring(&info.languages[i][0]);
+                    PA_Variable vObj = PA_CreateVariable(eVK_Unistring);
+                    PA_SetStringVariable(&vObj, &uStr);
+                    PA_SetCollectionElement(colLanguages, PA_GetCollectionLength(colLanguages), vObj);
+                    PA_ClearVariable(&vObj);
+                }
+
+                ob_set_c(returnValue, L"languages", colLanguages);
+            }
+
+            if(info.icon.size())
+            {
+                PA_Picture picture = PA_CreatePicture((void *)&info.icon[0], (PA_long32)info.icon.size());
+                ob_set_p(returnValue, L"icon", picture);
+            }
+        }
+    }
+    catch(...)
+    {
+
+    }
+
     PA_ReturnObject(params, returnValue);
 }
 
-
+/* main thread: returns a +1 (owned) copy of the identifier, or nil */
 static void main_o_Get_input_source(NSString **selectedKeyboardInputSource) {
-    
-    NSTextInputContext *currentInputContext = [NSTextInputContext currentInputContext];
-    
-    if(currentInputContext)
-    {
-        *selectedKeyboardInputSource = currentInputContext.selectedKeyboardInputSource;
+
+    @autoreleasepool {
+
+        try
+        {
+            NSTextInputContext *currentInputContext = [NSTextInputContext currentInputContext];
+
+            if(currentInputContext)
+            {
+                *selectedKeyboardInputSource = [currentInputContext.selectedKeyboardInputSource copy];
+            }
+        }
+        catch(...)
+        {
+
+        }
     }
-    
 }
 
 void _o_Get_input_source(PA_PluginParameters params) {
-    
-    sLONG_PTR *pResult = (sLONG_PTR *)params->fResult;
-    
-    C_TEXT returnValue;
-    
-    NSString *selectedKeyboardInputSource = nil;
-    
-    PA_RunInMainProcess((PA_RunInMainProcessProcPtr)main_o_Get_input_source, &selectedKeyboardInputSource);
-        
-    if(selectedKeyboardInputSource)
-    {
-        returnValue.setUTF16String(selectedKeyboardInputSource);
+
+    @autoreleasepool {
+
+        sLONG_PTR *pResult = (sLONG_PTR *)params->fResult;
+
+        C_TEXT returnValue;
+
+        NSString *selectedKeyboardInputSource = nil;
+
+        try
+        {
+            PA_RunInMainProcess((PA_RunInMainProcessProcPtr)main_o_Get_input_source, &selectedKeyboardInputSource);
+
+            if(selectedKeyboardInputSource)
+            {
+                returnValue.setUTF16String(selectedKeyboardInputSource);
+            }
+        }
+        catch(...)
+        {
+
+        }
+
+        [selectedKeyboardInputSource release];
+
+        returnValue.setReturn(pResult);
     }
-    
-    returnValue.setReturn(pResult);
 }
 
 static void main_SET_INPUT_SOURCE(NSString *selectedKeyboardInputSource) {
-    
-    NSTextInputContext *currentInputContext = [NSTextInputContext currentInputContext];
-    
-    if(currentInputContext)
-    {
-        currentInputContext.selectedKeyboardInputSource = selectedKeyboardInputSource;
 
-        currentInputContext.allowedInputSourceLocales = @[NSAllRomanInputSourcesLocaleIdentifier];
-        
+    @autoreleasepool {
+
+        try
+        {
+            NSTextInputContext *currentInputContext = [NSTextInputContext currentInputContext];
+
+            if(currentInputContext)
+            {
+                currentInputContext.selectedKeyboardInputSource = selectedKeyboardInputSource;
+
+                /* NOTE (review): this also restricts the context to Roman input sources;
+                 left unchanged on purpose, see review item 11 */
+                currentInputContext.allowedInputSourceLocales = @[NSAllRomanInputSourcesLocaleIdentifier];
+            }
+        }
+        catch(...)
+        {
+
+        }
     }
-    
 }
 
 void SET_INPUT_SOURCE(PA_PluginParameters params) {
-    
-    PackagePtr pParams = (PackagePtr)params->fParameters;
-    
-    C_TEXT Param1;
-    
-    Param1.fromParamAtIndex(pParams, 1);
-    
-    NSString *selectedKeyboardInputSource = Param1.copyUTF16String();
-    
-    PA_RunInMainProcess((PA_RunInMainProcessProcPtr)main_SET_INPUT_SOURCE, selectedKeyboardInputSource);
-    
-    [selectedKeyboardInputSource release];
 
+    @autoreleasepool {
+
+        PackagePtr pParams = (PackagePtr)params->fParameters;
+
+        C_TEXT Param1;
+
+        Param1.fromParamAtIndex(pParams, 1);
+
+        NSString *selectedKeyboardInputSource = Param1.copyUTF16String();
+
+        try
+        {
+            PA_RunInMainProcess((PA_RunInMainProcessProcPtr)main_SET_INPUT_SOURCE, selectedKeyboardInputSource);
+        }
+        catch(...)
+        {
+
+        }
+
+        [selectedKeyboardInputSource release];
+    }
 }
 
 /*
