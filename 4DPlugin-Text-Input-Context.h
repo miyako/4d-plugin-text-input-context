@@ -16,6 +16,10 @@
 #include "C_TEXT.h"
 #include "ARRAY_TEXT.h"
 
+#if VERSIONMAC
+#include <Carbon/Carbon.h>
+#endif
+
 // --- Text Input Context
 void _o_INPUT_SOURCES_LIST(PA_PluginParameters params);
 void _o_Get_input_source(PA_PluginParameters params);
