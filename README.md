@@ -380,3 +380,115 @@ SET INPUT SOURCE LOCALES($locales)       // no restriction
 
 GET INPUT SOURCE LOCALES($locales)       // 0 elements = no restriction
 ```
+
+## Manual versioning and publication
+
+The Actions workflows are independent manual operations. In **Bump version**,
+select a branch and `patch`, `minor`, or `major`. It validates the selected
+immutable commit, updates source version metadata, and pushes one metadata-only
+child commit to that same branch. It does not create tags, releases, builds, or
+other workflow runs. **Build** has no typed inputs: select its branch using the
+Actions branch selector. Every checkout uses that dispatch's `github.sha`, not
+the branch's later tip. Neither workflow runs on pushes or pull requests.
+
+The coordinated version policy comes from the original committed
+`bump-version.yml` header at
+[`1ba9947e02349836905a242327540c0f4e859781`](https://github.com/miyako/4d-plugin-text-input-context/commit/1ba9947e02349836905a242327540c0f4e859781):
+it explicitly requires `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, and
+present plist version literals to move together. Its marketing-first
+implementation did not fulfill that stated policy. The rename-follow history
+starts with this file's addition under `.github/workflows/`; there is no earlier
+renamed workflow in its ancestry. The existing marketing authority is `2.1.8`
+at `45a4dcc87cb9ab5db4f2d655c77747ee3d971702`. This migration only repairs the six
+stale source `CURRENT_PROJECT_VERSION` values and the copied English source
+localization to that existing version; it does not increment the version.
+The plist's `$(CURRENT_PROJECT_VERSION)` reference and absent optional
+`CFBundleVersion` remain unchanged. The entire committed prebuilt plugin tree
+remains byte-identical.
+
+Source validation requires strict `X.Y.Z` (no leading zeros or suffixes), checks
+all coordinated settings and source localization, rejects duplicates and drift
+before writing, and preserves references, absent optional keys, encoding,
+individual line endings, file modes, and unrelated bytes. Dependencies, bundled
+third-party plugins, and 4D database counters are not version inputs.
+
+The Bump helper requires a clean checkout at the exact selected remote branch
+tip and a mandatory executable pre-push guard, checked initially and immediately
+before pushing. The guard checks Git's advertised old SHA, exact branch/ref,
+literal new HEAD, a single direct parent, and exactly one advertised update.
+A remote advance, rewind, deletion, or same-result race fails closed. Pushes
+are non-force, use both `push.followTags=false` and `--no-follow-tags`, and
+require a nonempty metadata-only commit with the Copilot co-author trailer.
+
+### Build pipeline and recovery
+
+Despite the old workflow's Windows-first comment, this repository's actual
+pipeline builds **macOS only**. Build retains that pipeline: the `Default`
+Xcode target, `arm64 x86_64`, macOS deployment override `11.0`, Cocoa/Carbon
+frameworks, committed Windows binaries, QuickLook assets, and other resources.
+It pins the output directory to `test/Plugins` and disables Xcode signing
+during compilation; the original explicit Developer ID signing and strict
+verification follow. Only the exact rebuilt executable, plist, English
+localization, signature and target intermediates are invalidated. Missing or
+stale rebuilt metadata, including binary plist and UTF-16 localization, fails
+against the selected source. Required architecture names must be exact tokens;
+`arm64e` and `x86_64h` do not satisfy them. No new slice-count or no-i386 rule is
+introduced.
+
+The project copies `manifest.json` and `constants.xlf` through its existing
+Resources copy phase (`dstSubfolderSpec = 7`), and the English localization
+through its Resources phase. Those phases and destinations are not rewritten.
+The original six secret **names** are unchanged:
+`APPLE_DEVELOPER_ID_CERTIFICATE`, `APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD`,
+`KEYCHAIN_PASSWORD`, `NOTARYTOOL_APPLE_ID`, `NOTARYTOOL_TEAM_ID`, and
+`NOTARYTOOL_PASSWORD`. Both ZIP and DMG notarization must exit successfully
+**and** return JSON status `Accepted`; DMG stapling must succeed before
+publication.
+
+A constant cross-branch publication lock queues runs without cancellation.
+Before native work, and again after signing, both notarizations and stapling,
+the helper authenticates, exhausts release-list pagination (including drafts),
+and checks exact tag absence. Authentication, API/network errors, malformed
+responses, and failures on later pages abort instead of treating state as
+available. Existing tags or releases always block publication; use Bump first
+if the selected version was already published.
+
+Publication creates a new lightweight tag ref at the selected source SHA,
+verifies it remotely, then separately creates a **new public, non-prerelease**
+release with explicit tag, name, target, body and draft flags. Uploads use only
+that newly returned release ID. There is no reuse, PATCH, DELETE, clobber,
+retry, rollback, or combined release-with-assets command.
+
+If publication partially fails, the error identifies the retained state.
+Do not rerun expecting an overwrite: a created tag, release, or uploaded asset
+is deliberately retained. An operator must inspect the exact tag SHA, release
+ID and asset list, reconcile the partial publication manually under the
+repository's release policy, and choose a new source version for another
+automated Build. No automated cleanup deletes public or draft state.
+
+### Offline verification and pinned references
+
+Run `actionlint .github/workflows/*.yml` and
+`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s .github/tests -v`.
+The suites use disposable Git repositories/bare origins, mocked authenticated
+API responses, source-derived bundle fixtures, and a closed-PATH native-command
+harness. They never build native code, sign, notarize, run 4D, or publish.
+There is no PowerShell build phase to exercise in this repository.
+
+The workflows, helpers and regression suites were adapted from the following
+full, immutable references, not from their moving default branches:
+
+| Repository | Pinned commit |
+|---|---|
+| [native-encoding-detection](https://github.com/miyako/4d-plugin-native-encoding-detection) | `c42ca565857f674bde5ea6ed3435c87375eda4a7` |
+| [file-information](https://github.com/miyako/4d-plugin-file-information) | `19848973601acfd3a2b5070230fa40cdc7e4edb2` |
+| [common-string-algorithm](https://github.com/miyako/4d-plugin-common-string-algorithm) | `2606a68201866ec9fcbb38b51462d79215f504ef` |
+| [window-button](https://github.com/miyako/4d-plugin-window-button) | `3f14facb9aaaaff0e22eeb8e07531163680c3a8a` |
+| [raw-picture-data](https://github.com/miyako/4d-plugin-raw-picture-data) | `8144537fdc8dcc3d0c053dfe97aff0a8c0c3a6f9` |
+| [PRNG](https://github.com/miyako/4d-plugin-PRNG) | `522f62e1e9f388be0f3f226c1d4c39362dad2491` |
+
+The first four establish the manual split, authority distinctions, guarded Git
+updates and create-only publication. The last two supply lexical duplicate
+detection and comment-safe, lexically scoped rewrites. Product paths, actual
+build phases, version-field counts, resource handling and tests are specific to
+Text Input Context; no Windows build or unrelated project gates are imported.
