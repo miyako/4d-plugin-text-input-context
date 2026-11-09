@@ -59,12 +59,15 @@ class GitTests(unittest.TestCase):
             target = self.local / path
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / path, target)
+        live = source.metadata.read(ROOT).encode()
         project = self.local / source.metadata.PROJECT
-        project.write_bytes(project.read_bytes().replace(
-            b"MARKETING_VERSION = 2.1.8;", b"MARKETING_VERSION = 2.1.3;").replace(
-            b"CURRENT_PROJECT_VERSION = 2.1.8;", b"CURRENT_PROJECT_VERSION = 2.1.3;"))
+        data = project.read_bytes()
+        for key in source.metadata.KEYS:
+            data = data.replace(key.encode() + b" = " + live + b";",
+                                key.encode() + b" = 2.1.3;")
+        project.write_bytes(data)
         localized = self.local / source.metadata.LOCALIZED
-        localized.write_bytes(localized.read_bytes().replace(b"2.1.8", b"2.1.3"))
+        localized.write_bytes(localized.read_bytes().replace(live, b"2.1.3"))
         shutil.copytree(ROOT / ".github/scripts", self.local / ".github/scripts",
                         ignore=shutil.ignore_patterns("__pycache__"))
         git(self.local, "add", ".")

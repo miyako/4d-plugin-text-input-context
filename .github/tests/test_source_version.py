@@ -32,13 +32,16 @@ class SourceTests(unittest.TestCase):
             target = self.root / path
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / path, target)
-        # Keep adversarial fixtures stable across the narrow authority repair.
+        # Stable fixtures also run after a real helper bump of the checkout.
+        live = source.read(ROOT).encode()
         project = self.root / source.PROJECT
-        project.write_bytes(project.read_bytes().replace(
-            b"MARKETING_VERSION = 2.1.8;", b"MARKETING_VERSION = 2.1.3;").replace(
-            b"CURRENT_PROJECT_VERSION = 2.1.8;", b"CURRENT_PROJECT_VERSION = 2.1.3;"))
+        data = project.read_bytes()
+        for key in source.KEYS:
+            data = data.replace(key.encode() + b" = " + live + b";",
+                                key.encode() + b" = 2.1.3;")
+        project.write_bytes(data)
         localized = self.root / source.LOCALIZED
-        localized.write_bytes(localized.read_bytes().replace(b"2.1.8", b"2.1.3"))
+        localized.write_bytes(localized.read_bytes().replace(live, b"2.1.3"))
 
     def plist(self, **values):
         path = self.root / source.PLIST
@@ -97,6 +100,7 @@ class SourceTests(unittest.TestCase):
 
     def test_authority_repair_changes_only_original_version_bytes_and_no_modes(self):
         baseline = SOURCE_BASELINE
+        live = source.read(ROOT).encode()
         for path in source.SOURCE_PATHS:
             original = subprocess.run(
                 ["git", "-C", str(ROOT), "show", f"{baseline}:{path}"],
@@ -106,12 +110,14 @@ class SourceTests(unittest.TestCase):
             if path == source.PROJECT:
                 self.assertEqual(original.count(b"CURRENT_PROJECT_VERSION = 2.1.3;"), 6)
                 expected = original.replace(b"CURRENT_PROJECT_VERSION = 2.1.3;",
-                                            b"CURRENT_PROJECT_VERSION = 2.1.8;")
+                                            b"CURRENT_PROJECT_VERSION = " + live + b";")
+                expected = expected.replace(b"MARKETING_VERSION = 2.1.8;",
+                                            b"MARKETING_VERSION = " + live + b";")
             elif path == source.LOCALIZED:
                 self.assertEqual(original.count(b"2.1.3"), 2)
                 self.assertEqual(original.count(b"\r"), 5)
                 self.assertNotIn(b"\n", original)
-                expected = original.replace(b"2.1.3", b"2.1.8")
+                expected = original.replace(b"2.1.3", live)
             self.assertEqual((ROOT / path).read_bytes(), expected)
             mode = subprocess.run(
                 ["git", "-C", str(ROOT), "ls-tree", baseline, "--", str(path)],
@@ -122,7 +128,7 @@ class SourceTests(unittest.TestCase):
         plist = plistlib.loads((ROOT / source.PLIST).read_bytes())
         self.assertEqual(plist["CFBundleShortVersionString"], "$(CURRENT_PROJECT_VERSION)")
         self.assertNotIn("CFBundleVersion", plist)
-        self.assertEqual(source.read(ROOT), "2.1.8")
+        self.assertEqual(source.read(ROOT).encode(), live)
 
     def test_original_committed_header_explicitly_coordinates_both_keys(self):
         workflow = subprocess.run(
