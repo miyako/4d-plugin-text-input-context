@@ -553,7 +553,7 @@ void Get_input_source(PA_PluginParameters params) {
                 for(size_t i = 0; i < info.languages.size(); ++i)
                 {
                     PA_Unistring uStr = PA_CreateUnistring(&info.languages[i][0]);
-                    PA_Variable vObj = PA_CreateVariable(eVK_Unistring);
+                    PA_Variable vObj = PA_CreateVariable(eVK_Undefined);
                     PA_SetStringVariable(&vObj, &uStr);
                     PA_SetCollectionElement(colLanguages, PA_GetCollectionLength(colLanguages), vObj);
                     PA_ClearVariable(&vObj);

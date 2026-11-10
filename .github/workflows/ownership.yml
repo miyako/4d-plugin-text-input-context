@@ -1,0 +1,29 @@
+name: Native ownership
+
+on:
+  push:
+    branches:
+      - miyako-text-input-ownership
+      - master
+    paths:
+      - '4D Plugin API/**'
+      - '4DPlugin-Text-Input-Context.cpp'
+      - '4DPlugin-Text-Input-Context.h'
+      - 'support/**'
+      - '.github/tests/ownership*'
+      - '.github/tests/test_ownership.py'
+      - '.github/workflows/ownership.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  ownership:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unsigned synthetic-platform sanitizer regressions
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 .github/tests/test_ownership.py
