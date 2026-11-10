@@ -22,6 +22,10 @@ Text Input Context lets 4D read and change the macOS keyboard input source (keyb
 
 **Platforms:** macOS only (Intel and Apple silicon), 4D v17 or later. The plugin has no Windows implementation.
 
+Native-source ownership regressions run without activating a real input context:
+`python3 .github/tests/test_ownership.py` (macOS). See the
+[ownership audit](.github/tests/ownership-audit.md) for SDK provenance, baseline failures and validation limits.
+
 ---
 
 ## Requirements & platform notes
